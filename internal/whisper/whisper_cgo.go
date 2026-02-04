@@ -66,10 +66,13 @@ func (c *Context) Transcribe(samples []float32, opts TranscribeOptions) (string,
 	params.print_realtime = C.bool(opts.Verbose)
 	params.print_timestamps = C.bool(opts.Verbose)
 
-	if opts.Language != "" {
+	if opts.Language != "" && opts.Language != "auto" {
 		cLang := C.CString(opts.Language)
 		defer C.free(unsafe.Pointer(cLang))
 		params.language = cLang
+	}
+	if opts.DetectLanguage || opts.Language == "auto" {
+		params.detect_language = C.bool(true)
 	}
 	if opts.Translate {
 		params.translate = C.bool(true)

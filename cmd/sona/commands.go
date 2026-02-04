@@ -27,7 +27,7 @@ func newRootCommand() *cobra.Command {
 
 func (a *app) newTranscribeCommand() *cobra.Command {
 	var language, prompt string
-	var translate bool
+	var translate, detectLanguage bool
 	var threads int
 
 	cmd := &cobra.Command{
@@ -52,11 +52,12 @@ func (a *app) newTranscribeCommand() *cobra.Command {
 			defer ctx.Close()
 
 			text, err := ctx.Transcribe(samples, whisper.TranscribeOptions{
-				Language:  language,
-				Translate: translate,
-				Threads:   threads,
-				Prompt:    prompt,
-				Verbose:   a.verbose,
+				Language:       language,
+				DetectLanguage: detectLanguage,
+				Translate:      translate,
+				Threads:        threads,
+				Prompt:         prompt,
+				Verbose:        a.verbose,
 			})
 			if err != nil {
 				return fmt.Errorf("error transcribing: %w", err)
@@ -66,7 +67,8 @@ func (a *app) newTranscribeCommand() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&language, "language", "l", "", "language code (e.g. en, he, auto)")
+	cmd.Flags().StringVarP(&language, "language", "l", "", "language code (e.g. en, he); empty uses whisper.cpp default (en)")
+	cmd.Flags().BoolVar(&detectLanguage, "detect-language", false, "auto-detect language")
 	cmd.Flags().BoolVar(&translate, "translate", false, "translate to English")
 	cmd.Flags().IntVar(&threads, "threads", 0, "CPU threads (0 = default)")
 	cmd.Flags().StringVar(&prompt, "prompt", "", "initial prompt / vocabulary hint")

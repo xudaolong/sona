@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"time"
 
@@ -54,9 +55,10 @@ func (s *Server) handleTranscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	opts := whisper.TranscribeOptions{
-		Language: r.FormValue("language"),
-		Prompt:   r.FormValue("prompt"),
-		Verbose:  s.verbose,
+		Language:       r.FormValue("language"),
+		DetectLanguage: parseBoolFormValue(r.FormValue("detect_language")),
+		Prompt:         r.FormValue("prompt"),
+		Verbose:        s.verbose,
 	}
 
 	s.mu.Lock()
@@ -102,4 +104,9 @@ func ListenAndServe(addr string, s *Server) error {
 	log.Printf("listening on %s", addr)
 	fmt.Printf("listening on %s\n", addr)
 	return http.ListenAndServe(addr, s.Handler())
+}
+
+func parseBoolFormValue(v string) bool {
+	b, err := strconv.ParseBool(v)
+	return err == nil && b
 }
