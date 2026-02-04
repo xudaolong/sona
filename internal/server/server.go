@@ -14,7 +14,7 @@ import (
 	"github.com/thewh1teagle/sona/internal/whisper"
 )
 
-const maxUploadSize = 25 << 20 // 25 MB
+const maxUploadSize = 1 << 30 // 1 GB
 
 type Server struct {
 	ctx       *whisper.Context
