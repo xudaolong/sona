@@ -14,6 +14,10 @@ import (
 
 var verbose bool
 
+type ReadOptions struct {
+	EnhanceAudio bool
+}
+
 func SetVerbose(v bool) {
 	verbose = v
 }
@@ -43,7 +47,7 @@ func findFFmpeg() (string, error) {
 
 // convertWithFFmpeg writes the input to a temp file, runs ffmpeg to convert
 // it to 16kHz mono s16le PCM via pipe output, and returns float32 samples.
-func convertWithFFmpeg(r io.Reader, ffmpegPath string) ([]float32, error) {
+func convertWithFFmpeg(r io.Reader, ffmpegPath string, opts ReadOptions) ([]float32, error) {
 	tmp, err := os.CreateTemp("", "sona-*.audio")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp file: %w", err)
@@ -56,14 +60,22 @@ func convertWithFFmpeg(r io.Reader, ffmpegPath string) ([]float32, error) {
 	}
 	tmp.Close()
 
-	cmd := exec.Command(ffmpegPath,
+	args := []string{
 		"-i", tmp.Name(),
 		"-ar", "16000",
 		"-ac", "1",
+	}
+	if opts.EnhanceAudio {
+		// Quality-over-speed cleanup path to reduce transcription drift on noisy/long files.
+		args = append(args, "-af", "silenceremove=stop_periods=-1:stop_duration=0.7:stop_threshold=-45dB")
+	}
+	args = append(args,
 		"-f", "s16le",
 		"-acodec", "pcm_s16le",
 		"pipe:1",
 	)
+
+	cmd := exec.Command(ffmpegPath, args...)
 	if verbose {
 		cmd.Stderr = os.Stderr
 	} else {
@@ -88,12 +100,16 @@ func convertWithFFmpeg(r io.Reader, ffmpegPath string) ([]float32, error) {
 // If the input is a native 16kHz/mono/16-bit PCM WAV, it is decoded directly.
 // Otherwise, ffmpeg is used to convert the audio.
 func Read(r io.ReadSeeker) ([]float32, error) {
+	return ReadWithOptions(r, ReadOptions{})
+}
+
+func ReadWithOptions(r io.ReadSeeker, opts ReadOptions) ([]float32, error) {
 	h, err := wav.ReadHeader(r)
-	if err == nil && h.IsNative() {
+	if err == nil && h.IsNative() && !opts.EnhanceAudio {
 		return wav.Read(r)
 	}
 
-	// Not a native WAV — need ffmpeg
+	// Not a native WAV (or enhancement requested) — need ffmpeg
 	r.Seek(0, io.SeekStart)
 	ffmpegPath, err := findFFmpeg()
 	if err != nil {
@@ -105,15 +121,19 @@ func Read(r io.ReadSeeker) ([]float32, error) {
 		return nil, fmt.Errorf("unsupported audio format and %w", err)
 	}
 
-	return convertWithFFmpeg(r, ffmpegPath)
+	return convertWithFFmpeg(r, ffmpegPath, opts)
 }
 
 // ReadFile opens an audio file by path and returns float32 samples at 16kHz mono.
 func ReadFile(path string) ([]float32, error) {
+	return ReadFileWithOptions(path, ReadOptions{})
+}
+
+func ReadFileWithOptions(path string, opts ReadOptions) ([]float32, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
-	return Read(f)
+	return ReadWithOptions(f, opts)
 }

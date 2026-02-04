@@ -48,7 +48,9 @@ func (s *Server) handleTranscription(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	samples, err := audio.Read(file)
+	samples, err := audio.ReadWithOptions(file, audio.ReadOptions{
+		EnhanceAudio: parseBoolFormValue(r.FormValue("enhance_audio")),
+	})
 	if err != nil {
 		writeError(w, http.StatusBadRequest, "invalid audio file: "+err.Error())
 		return

@@ -28,6 +28,7 @@ func newRootCommand() *cobra.Command {
 func (a *app) newTranscribeCommand() *cobra.Command {
 	var language, prompt string
 	var translate, detectLanguage bool
+	var enhanceAudio bool
 	var threads int
 
 	cmd := &cobra.Command{
@@ -40,7 +41,9 @@ func (a *app) newTranscribeCommand() *cobra.Command {
 			audio.SetVerbose(a.verbose)
 			whisper.SetVerbose(a.verbose)
 
-			samples, err := audio.ReadFile(audioPath)
+			samples, err := audio.ReadFileWithOptions(audioPath, audio.ReadOptions{
+				EnhanceAudio: enhanceAudio,
+			})
 			if err != nil {
 				return fmt.Errorf("error reading audio: %w", err)
 			}
@@ -69,6 +72,7 @@ func (a *app) newTranscribeCommand() *cobra.Command {
 
 	cmd.Flags().StringVarP(&language, "language", "l", "", "language code (e.g. en, he); empty uses whisper.cpp default (en)")
 	cmd.Flags().BoolVar(&detectLanguage, "detect-language", false, "auto-detect language")
+	cmd.Flags().BoolVar(&enhanceAudio, "enhance-audio", false, "clean audio with ffmpeg before transcription (slower, can reduce repeats)")
 	cmd.Flags().BoolVar(&translate, "translate", false, "translate to English")
 	cmd.Flags().IntVar(&threads, "threads", 0, "CPU threads (0 = default)")
 	cmd.Flags().StringVar(&prompt, "prompt", "", "initial prompt / vocabulary hint")
