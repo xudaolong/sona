@@ -15,6 +15,8 @@ type docsTranscriptionForm struct {
 	Prompt         string        `form:"prompt"`
 	DetectLanguage string        `form:"detect_language"`
 	EnhanceAudio   string        `form:"enhance_audio"`
+	ResponseFormat string        `form:"response_format"`
+	Stream         string        `form:"stream"`
 	Model          string        `form:"model"`
 }
 
@@ -30,6 +32,32 @@ type docsTranscriptionOutput struct {
 
 type docsModelsOutput struct {
 	Body map[string]any
+}
+
+type docsModelLoadInput struct {
+	Body struct {
+		Path string `json:"path"`
+	}
+}
+
+type docsModelLoadOutput struct {
+	Body struct {
+		Status string `json:"status"`
+		Model  string `json:"model"`
+	}
+}
+
+type docsStatusOutput struct {
+	Body struct {
+		Status string `json:"status"`
+	}
+}
+
+type docsReadyOutput struct {
+	Body struct {
+		Status string `json:"status"`
+		Model  string `json:"model,omitempty"`
+	}
 }
 
 func (s *Server) registerDocsRoutes(mux *http.ServeMux) {
@@ -53,6 +81,42 @@ func (s *Server) registerDocsRoutes(mux *http.ServeMux) {
 		OperationID: "listModels",
 		Summary:     "List loaded models",
 	}, func(context.Context, *struct{}) (*docsModelsOutput, error) {
+		return nil, huma.Error501NotImplemented("spec-only operation")
+	})
+
+	huma.Register(api, huma.Operation{
+		Method:      http.MethodPost,
+		Path:        "/v1/models/load",
+		OperationID: "loadModel",
+		Summary:     "Load a model",
+	}, func(context.Context, *docsModelLoadInput) (*docsModelLoadOutput, error) {
+		return nil, huma.Error501NotImplemented("spec-only operation")
+	})
+
+	huma.Register(api, huma.Operation{
+		Method:      http.MethodDelete,
+		Path:        "/v1/models",
+		OperationID: "unloadModel",
+		Summary:     "Unload the current model",
+	}, func(context.Context, *struct{}) (*docsStatusOutput, error) {
+		return nil, huma.Error501NotImplemented("spec-only operation")
+	})
+
+	huma.Register(api, huma.Operation{
+		Method:      http.MethodGet,
+		Path:        "/health",
+		OperationID: "healthCheck",
+		Summary:     "Health check (always 200)",
+	}, func(context.Context, *struct{}) (*docsStatusOutput, error) {
+		return nil, huma.Error501NotImplemented("spec-only operation")
+	})
+
+	huma.Register(api, huma.Operation{
+		Method:      http.MethodGet,
+		Path:        "/ready",
+		OperationID: "readyCheck",
+		Summary:     "Ready check (200 if model loaded, 503 otherwise)",
+	}, func(context.Context, *struct{}) (*docsReadyOutput, error) {
 		return nil, huma.Error501NotImplemented("spec-only operation")
 	})
 

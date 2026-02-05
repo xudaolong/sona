@@ -54,7 +54,7 @@ func (a *app) newTranscribeCommand() *cobra.Command {
 			}
 			defer ctx.Close()
 
-			text, err := ctx.Transcribe(samples, whisper.TranscribeOptions{
+			result, err := ctx.Transcribe(samples, whisper.TranscribeOptions{
 				Language:       language,
 				DetectLanguage: detectLanguage,
 				Translate:      translate,
@@ -65,7 +65,7 @@ func (a *app) newTranscribeCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("error transcribing: %w", err)
 			}
-			fmt.Println(text)
+			fmt.Println(result.Text())
 			return nil
 		},
 	}
@@ -83,25 +83,26 @@ func (a *app) newServeCommand() *cobra.Command {
 	var port int
 
 	cmd := &cobra.Command{
-		Use:   "serve <model.bin>",
-		Short: "Start an OpenAI-compatible transcription server",
-		Args:  cobra.ExactArgs(1),
+		Use:   "serve [model.bin]",
+		Short: "Start a transcription runner",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			modelPath := args[0]
 			audio.SetVerbose(a.verbose)
 			whisper.SetVerbose(a.verbose)
 
-			ctx, err := whisper.New(modelPath)
-			if err != nil {
-				return fmt.Errorf("error loading model: %w", err)
-			}
-			defer ctx.Close()
+			s := server.New(a.verbose)
 
-			addr := fmt.Sprintf(":%d", port)
-			return server.ListenAndServe(addr, server.New(ctx, modelPath, a.verbose))
+			// Load initial model if provided.
+			if len(args) > 0 {
+				if err := s.LoadModel(args[0]); err != nil {
+					return fmt.Errorf("error loading model: %w", err)
+				}
+			}
+
+			return server.ListenAndServe(port, s)
 		},
 	}
 
-	cmd.Flags().IntVarP(&port, "port", "p", 11531, "port to listen on")
+	cmd.Flags().IntVarP(&port, "port", "p", 0, "port to listen on (0 = auto-assign)")
 	return cmd
 }

@@ -1,6 +1,9 @@
 package whisper
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 var ErrNotImplemented = errors.New("whisper: not implemented on this platform")
 
@@ -12,4 +15,35 @@ type TranscribeOptions struct {
 	Threads        int    // CPU threads (0 = whisper default)
 	Prompt         string // initial prompt / vocabulary hint
 	Verbose        bool   // enable whisper/ggml logs
+}
+
+// Segment represents a transcribed text segment with timestamps.
+type Segment struct {
+	Start int64  // start time in centiseconds (10ms units)
+	End   int64  // end time in centiseconds (10ms units)
+	Text  string
+}
+
+// TranscribeResult holds the output of a transcription.
+type TranscribeResult struct {
+	Segments []Segment
+}
+
+// Text returns the concatenated text of all segments.
+func (r TranscribeResult) Text() string {
+	var sb strings.Builder
+	for _, s := range r.Segments {
+		sb.WriteString(s.Text)
+	}
+	return sb.String()
+}
+
+// StreamCallbacks provides real-time feedback during transcription.
+type StreamCallbacks struct {
+	// OnProgress is called with a percentage (0-100) during inference.
+	OnProgress func(progress int)
+	// OnSegment is called for each newly generated segment.
+	OnSegment func(segment Segment)
+	// ShouldAbort is polled during inference; return true to cancel.
+	ShouldAbort func() bool
 }
