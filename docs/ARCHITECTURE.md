@@ -69,9 +69,9 @@ High-level layout of the codebase:
 
 2. Once bound, Sona prints exactly one machine-readable line to stdout:
 
-'''
+```
 {"status":"ready","port":52341}
-'''
+```
 
 3. HTTP server begins handling requests
 
