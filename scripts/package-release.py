@@ -2,7 +2,6 @@
 # requires-python = ">=3.12"
 # dependencies = [
 #     "httpx==0.28.1",
-#     "py7zr==0.22.0",
 # ]
 # ///
 
@@ -17,13 +16,12 @@ import zipfile
 from pathlib import Path
 
 import httpx
-import py7zr
 
 
 FFMPEG_URLS = {
     ("darwin", "amd64"): "https://www.osxexperts.net/ffmpeg80intel.zip",
     ("darwin", "arm64"): "https://www.osxexperts.net/ffmpeg80arm.zip",
-    ("windows", "amd64"): "https://www.gyan.dev/ffmpeg/builds/ffmpeg-git-essentials.7z",
+    ("windows", "amd64"): "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
 }
 
 
@@ -44,25 +42,16 @@ def resolve_ffmpeg_url(goos: str, goarch: str) -> str:
 def copy_ffmpeg(stage_dir: Path, goos: str, goarch: str):
     url = resolve_ffmpeg_url(goos, goarch)
     data = download_bytes(url)
+    ffmpeg_name = "ffmpeg.exe" if goos == "windows" else "ffmpeg"
+    ffmpeg_path = stage_dir / ffmpeg_name
 
-    if goos == "windows":
-        ffmpeg_path = stage_dir / "ffmpeg.exe"
-        with py7zr.SevenZipFile(io.BytesIO(data), "r") as archive:
-            for fname, bio in archive.read().items():
-                if Path(fname).name == "ffmpeg.exe":
-                    ffmpeg_path.write_bytes(bio.read())
-                    break
-            else:
-                raise FileNotFoundError("ffmpeg.exe not found in 7z archive")
-    else:
-        ffmpeg_path = stage_dir / "ffmpeg"
-        with zipfile.ZipFile(io.BytesIO(data)) as zf:
-            for name in zf.namelist():
-                if Path(name).name == "ffmpeg":
-                    ffmpeg_path.write_bytes(zf.read(name))
-                    break
-            else:
-                raise FileNotFoundError("ffmpeg not found in zip archive")
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        for name in zf.namelist():
+            if Path(name).name == ffmpeg_name:
+                ffmpeg_path.write_bytes(zf.read(name))
+                break
+        else:
+            raise FileNotFoundError(f"{ffmpeg_name} not found in zip archive")
 
     ffmpeg_path.chmod(0o755)
 

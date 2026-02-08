@@ -22,12 +22,21 @@ func SetVerbose(v bool) {
 	verbose = v
 }
 
-// findFFmpeg prefers a system ffmpeg from $PATH, then falls back
-// to a bundled ffmpeg next to the current binary.
+// findFFmpeg checks for ffmpeg in this order:
+// 1. System ffmpeg from $PATH
+// 2. SONA_FFMPEG_PATH env var (warns and continues if set but not found)
+// 3. Bundled ffmpeg next to the current binary
 func findFFmpeg() (string, error) {
 	path, err := exec.LookPath("ffmpeg")
 	if err == nil {
 		return path, nil
+	}
+
+	if envPath := os.Getenv("SONA_FFMPEG_PATH"); envPath != "" {
+		if _, statErr := os.Stat(envPath); statErr == nil {
+			return envPath, nil
+		}
+		fmt.Fprintf(os.Stderr, "warning: SONA_FFMPEG_PATH set to %q but not found, continuing search\n", envPath)
 	}
 
 	if exe, exErr := os.Executable(); exErr == nil {
