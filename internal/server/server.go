@@ -17,7 +17,7 @@ import (
 	"github.com/thewh1teagle/sona/internal/whisper"
 )
 
-const maxUploadSize = 1 << 30 // 1 GB
+const maxUploadSize = 15 << 30 // 15 GB
 
 type Server struct {
 	mu        sync.Mutex
