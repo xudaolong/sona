@@ -25,12 +25,13 @@ type Server struct {
 	modelName string
 	modelPath string
 	verbose   bool
+	noGpu     bool
 	Version   string
 	Commit    string
 }
 
-func New(verbose bool) *Server {
-	return &Server{verbose: verbose}
+func New(verbose bool, noGpu bool) *Server {
+	return &Server{verbose: verbose, noGpu: noGpu}
 }
 
 // LoadModel loads a whisper model, unloading any existing one first.
@@ -49,7 +50,7 @@ func (s *Server) loadModelLocked(path string, gpuDevice int) error {
 		s.modelPath = ""
 	}
 
-	ctx, err := whisper.New(path, gpuDevice)
+	ctx, err := whisper.New(path, gpuDevice, s.noGpu)
 	if err != nil {
 		return err
 	}

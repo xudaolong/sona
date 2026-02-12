@@ -78,7 +78,7 @@ func SetVerbose(v bool) {
 	C.sona_whisper_set_verbose(0)
 }
 
-func New(modelPath string, gpuDevice int) (*Context, error) {
+func New(modelPath string, gpuDevice int, noGpu bool) (*Context, error) {
 	// Read model via Go's os.ReadFile which handles non-ASCII paths on Windows
 	// (Go uses CreateFileW internally), then pass the buffer to whisper.cpp
 	// to avoid fopen() failing on non-ASCII paths with MinGW's C runtime.
@@ -88,7 +88,7 @@ func New(modelPath string, gpuDevice int) (*Context, error) {
 	}
 
 	params := C.whisper_context_default_params()
-	if !VulkanAvailable() {
+	if noGpu || !VulkanAvailable() {
 		params.use_gpu = C.bool(false)
 	} else if gpuDevice >= 0 {
 		params.gpu_device = C.int(gpuDevice)
