@@ -106,6 +106,8 @@ func (a *app) newServeCommand() *cobra.Command {
 			whisper.SetVerbose(a.verbose)
 
 			s := server.New(a.verbose)
+			s.Version = version
+			s.Commit = commit
 
 			// Load initial model if provided.
 			if len(args) > 0 {

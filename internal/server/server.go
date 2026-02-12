@@ -25,6 +25,8 @@ type Server struct {
 	modelName string
 	modelPath string
 	verbose   bool
+	Version   string
+	Commit    string
 }
 
 func New(verbose bool) *Server {
@@ -98,8 +100,10 @@ func ListenAndServe(host string, port int, s *Server) error {
 
 	// Machine-readable ready signal for parent process.
 	readyMsg, _ := json.Marshal(map[string]any{
-		"status": "ready",
-		"port":   actualPort,
+		"status":  "ready",
+		"port":    actualPort,
+		"version": s.Version,
+		"commit":  s.Commit,
 	})
 	fmt.Println(string(readyMsg))
 	log.Printf("listening on %s:%d", host, actualPort)

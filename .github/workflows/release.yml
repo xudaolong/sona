@@ -83,7 +83,7 @@ jobs:
         shell: bash
         run: |
           CGO_ENABLED=1 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} \
-          go build -o "${{ matrix.binary }}" -ldflags "-X main.version=${VERSION}" ./cmd/sona
+          go build -o "${{ matrix.binary }}" -ldflags "-X main.version=${VERSION} -X main.commit=${GITHUB_SHA::8}" ./cmd/sona
       - name: Package release bundle with ffmpeg
         if: matrix.archive != ''
         shell: bash

@@ -5,6 +5,7 @@ import (
 )
 
 var version = "dev"
+var commit = "dev"
 
 func main() {
 	if err := newRootCommand().Execute(); err != nil {
