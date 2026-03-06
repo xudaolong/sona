@@ -171,20 +171,29 @@ func (s *Server) handleTranscription(w http.ResponseWriter, r *http.Request) {
 	}
 
 	samplingStrategy := r.FormValue("sampling_strategy")
+	stableTimestamps := parseBoolFormValue(r.FormValue("stable_timestamps"))
+	vadModelPath := r.FormValue("vad_model")
+	if stableTimestamps && vadModelPath == "" {
+		writeError(w, http.StatusBadRequest, ErrCodeInvalidRequest, "'vad_model' is required when 'stable_timestamps' is true")
+		return
+	}
+
 	opts := whisper.TranscribeOptions{
-		Language:       r.FormValue("language"),
-		DetectLanguage: parseBoolFormValue(r.FormValue("detect_language")),
-		Translate:      parseBoolFormValue(r.FormValue("translate")),
-		Threads:        parseIntFormValue(r.FormValue("n_threads")),
-		Prompt:         r.FormValue("prompt"),
-		Verbose:        s.verbose,
-		Temperature:    parseFloatFormValue(r.FormValue("temperature")),
-		MaxTextCtx:     parseIntFormValue(r.FormValue("max_text_ctx")),
-		WordTimestamps: parseBoolFormValue(r.FormValue("word_timestamps")),
-		MaxSegmentLen:  parseIntFormValue(r.FormValue("max_segment_len")),
-		SamplingGreedy: samplingStrategy != "beam_search",
-		BestOf:         parseIntFormValue(r.FormValue("best_of")),
-		BeamSize:       parseIntFormValue(r.FormValue("beam_size")),
+		Language:         r.FormValue("language"),
+		DetectLanguage:   parseBoolFormValue(r.FormValue("detect_language")),
+		Translate:        parseBoolFormValue(r.FormValue("translate")),
+		Threads:          parseIntFormValue(r.FormValue("n_threads")),
+		Prompt:           r.FormValue("prompt"),
+		Verbose:          s.verbose,
+		Temperature:      parseFloatFormValue(r.FormValue("temperature")),
+		MaxTextCtx:       parseIntFormValue(r.FormValue("max_text_ctx")),
+		WordTimestamps:   parseBoolFormValue(r.FormValue("word_timestamps")),
+		MaxSegmentLen:    parseIntFormValue(r.FormValue("max_segment_len")),
+		SamplingGreedy:   samplingStrategy != "beam_search",
+		BestOf:           parseIntFormValue(r.FormValue("best_of")),
+		BeamSize:         parseIntFormValue(r.FormValue("beam_size")),
+		StableTimestamps: stableTimestamps,
+		VadModelPath:     vadModelPath,
 	}
 
 	responseFormat := r.FormValue("response_format")
