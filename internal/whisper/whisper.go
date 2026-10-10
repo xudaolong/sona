@@ -24,6 +24,7 @@ type TranscribeOptions struct {
 	BeamSize         int     // beam search: beam width (0 = whisper default)
 	StableTimestamps bool    // enable VAD-backed timestamp stabilization
 	VadModelPath     string  // path to GGML VAD model (required with StableTimestamps)
+	VadFilter        bool    // drop non-speech audio before decoding (single-pass; requires VadModelPath)
 }
 
 // Segment represents a transcribed text segment with timestamps.

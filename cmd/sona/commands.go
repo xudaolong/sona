@@ -28,9 +28,9 @@ func newRootCommand() *cobra.Command {
 }
 
 func (a *app) newTranscribeCommand() *cobra.Command {
-	var language, prompt string
+	var language, prompt, vadModel string
 	var translate, detectLanguage bool
-	var enhanceAudio, wordTimestamps bool
+	var enhanceAudio, wordTimestamps, vadFilter bool
 	var threads, maxTextCtx, maxSegmentLen, bestOf, beamSize, gpuDevice int
 	var temperature float32
 
@@ -70,6 +70,8 @@ func (a *app) newTranscribeCommand() *cobra.Command {
 				MaxSegmentLen:  maxSegmentLen,
 				BestOf:         bestOf,
 				BeamSize:       beamSize,
+				VadFilter:      vadFilter,
+				VadModelPath:   vadModel,
 			})
 			if err != nil {
 				return fmt.Errorf("error transcribing: %w", err)
@@ -92,6 +94,8 @@ func (a *app) newTranscribeCommand() *cobra.Command {
 	cmd.Flags().IntVar(&bestOf, "best-of", 0, "greedy sampling: top candidates (0 = default)")
 	cmd.Flags().IntVar(&beamSize, "beam-size", 0, "beam search: beam width (0 = default)")
 	cmd.Flags().IntVar(&gpuDevice, "gpu-device", -1, "GPU device index (-1 = whisper default)")
+	cmd.Flags().BoolVar(&vadFilter, "vad-filter", false, "drop non-speech audio before decoding (requires --vad-model)")
+	cmd.Flags().StringVar(&vadModel, "vad-model", "", "path to GGML VAD model (e.g. ggml-silero-v6.2.0.bin)")
 	return cmd
 }
 

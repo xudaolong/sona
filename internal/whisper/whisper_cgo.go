@@ -139,6 +139,14 @@ func buildFullParams(opts TranscribeOptions) (C.struct_whisper_full_params, func
 	if opts.BeamSize > 0 {
 		params.beam_search.beam_size = C.int(opts.BeamSize)
 	}
+	if opts.VadFilter && !opts.StableTimestamps && opts.VadModelPath != "" {
+		// Native whisper.cpp VAD: non-speech audio is dropped before decoding and
+		// timestamps are mapped back to the original timeline.
+		cVadModel := C.CString(opts.VadModelPath)
+		cPtrs = append(cPtrs, unsafe.Pointer(cVadModel))
+		params.vad = C.bool(true)
+		params.vad_model_path = cVadModel
+	}
 
 	cleanup := func() {
 		for _, ptr := range cPtrs {

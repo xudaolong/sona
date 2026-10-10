@@ -173,8 +173,13 @@ func (s *Server) handleTranscription(w http.ResponseWriter, r *http.Request) {
 	samplingStrategy := r.FormValue("sampling_strategy")
 	stableTimestamps := parseBoolFormValue(r.FormValue("stable_timestamps"))
 	vadModelPath := r.FormValue("vad_model")
+	vadFilter := parseBoolFormValue(r.FormValue("vad_filter"))
 	if stableTimestamps && vadModelPath == "" {
 		writeError(w, http.StatusBadRequest, ErrCodeInvalidRequest, "'vad_model' is required when 'stable_timestamps' is true")
+		return
+	}
+	if vadFilter && vadModelPath == "" {
+		writeError(w, http.StatusBadRequest, ErrCodeInvalidRequest, "'vad_model' is required when 'vad_filter' is true")
 		return
 	}
 
@@ -194,6 +199,7 @@ func (s *Server) handleTranscription(w http.ResponseWriter, r *http.Request) {
 		BeamSize:         parseIntFormValue(r.FormValue("beam_size")),
 		StableTimestamps: stableTimestamps,
 		VadModelPath:     vadModelPath,
+		VadFilter:        vadFilter,
 	}
 
 	responseFormat := r.FormValue("response_format")

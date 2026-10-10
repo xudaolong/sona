@@ -29,6 +29,7 @@ type docsTranscriptionForm struct {
 	Temperature    float32       `form:"temperature"`
 	Translate      bool          `form:"translate"`
 	VadModel       string        `form:"vad_model"`
+	VadFilter      bool          `form:"vad_filter"`
 	WordTimestamps bool          `form:"word_timestamps"`
 }
 
