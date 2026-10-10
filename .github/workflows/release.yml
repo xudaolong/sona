@@ -72,7 +72,8 @@ jobs:
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          install: mingw-w64-x86_64-vulkan-devel mingw-w64-x86_64-gcc
+          # libgomp is a separate package since GCC 16; the Windows cgo link needs libgomp.a
+          install: mingw-w64-x86_64-vulkan-devel mingw-w64-x86_64-gcc mingw-w64-x86_64-libgomp
       - name: Add MinGW to PATH
         if: runner.os == 'Windows'
         shell: pwsh
