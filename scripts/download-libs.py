@@ -7,13 +7,15 @@
 
 """Download prebuilt whisper.cpp static libs from GitHub releases for the current platform."""
 
-import platform, tarfile, io
+import os, platform, tarfile, io
 from pathlib import Path
 
 import httpx
 
 ROOT = Path(__file__).resolve().parent.parent
-GITHUB_REPO = "thewh1teagle/sona"
+# The `libraries-<commit>` releases are uploaded by the `Build whisper.cpp libs`
+# workflow into the repository it runs in — keep both sides on the same repo.
+GITHUB_REPO = os.environ.get("GITHUB_REPOSITORY", "xudaolong/sona")
 
 
 def get_commit() -> str:
