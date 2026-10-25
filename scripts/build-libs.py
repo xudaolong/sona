@@ -48,6 +48,47 @@ def clone(commit: str, src_dir: Path):
     )
 
 
+def isa_flags() -> list[str]:
+    """Pin the instruction set baseline the released libs are allowed to require.
+
+    ggml defaults `GGML_NATIVE=ON`, which is `-march=native`: whatever CPU the CI
+    runner happens to have is baked into libggml-*. GitHub's x64 runners are
+    AVX-512 capable, so the v0.3.0 libs carried EVEX instructions and every CPU
+    without AVX-512 (i9-9900K, AMD Ryzen up to Zen 3, most Xeons in the field)
+    died with 0xC000001D (STATUS_ILLEGAL_INSTRUCTION) inside
+    `whisper_init_from_buffer_with_params` / `ggml_backend_dev_count`.
+
+    A static ggml-cpu has no runtime dispatch between ISA levels, so the floor
+    has to be chosen here, once, and stated explicitly: a future CMake default
+    change must not silently reintroduce the crash.
+    """
+    system = platform.system()
+    machine = platform.machine().lower()
+    if machine in ("x86_64", "amd64"):
+        # Haswell (2013)+. AVX-512 stays OFF: enabling it would re-break every
+        # non-AVX512 CPU, because there is no per-function dispatch to fall back on.
+        return [
+            "-DGGML_NATIVE=OFF",
+            "-DGGML_SSE42=ON",
+            "-DGGML_AVX=ON",
+            "-DGGML_AVX2=ON",
+            "-DGGML_FMA=ON",
+            "-DGGML_F16C=ON",
+            "-DGGML_BMI2=ON",
+            "-DGGML_AVX512=OFF",
+        ]
+    if machine in ("arm64", "aarch64"):
+        if system == "Darwin":
+            # M1 feature level: every Apple Silicon chip from M1 on supports it,
+            # and it is what -march=native resolves to on the arm64 runner.
+            return ["-DGGML_NATIVE=OFF", "-DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16"]
+        # Linux arm64 runners are Neoverse-class (SVE/SVE2); target the widest
+        # baseline in use instead (Raspberry Pi 4 / Cortex-A72).
+        return ["-DGGML_NATIVE=OFF", "-DGGML_CPU_ARM_ARCH=armv8-a"]
+    # Unknown arch: at least never compile for the build machine.
+    return ["-DGGML_NATIVE=OFF"]
+
+
 def cmake_flags() -> list[str]:
     flags = [
         "-DCMAKE_BUILD_TYPE=Release",
@@ -56,6 +97,7 @@ def cmake_flags() -> list[str]:
         "-DWHISPER_BUILD_TESTS=OFF",
         "-DWHISPER_BUILD_SERVER=OFF",
     ]
+    flags += isa_flags()
     system = platform.system()
     if system == "Darwin":
         flags += ["-DGGML_METAL=ON", "-DGGML_METAL_EMBED_LIBRARY=ON"]
@@ -93,6 +135,46 @@ def build_vulkan_delay_lib(build_dir: Path):
         dll_path = result.stdout.strip().splitlines()[0]
     run("gendef", dll_path, cwd=str(delay_dir))
     run("dlltool", "--input-def", "vulkan-1.def", "--output-delaylib", "libvulkan-1-delay.a", cwd=str(delay_dir))
+
+
+def verify_no_avx512(build_dir: Path):
+    """Fail the build if a packaged lib carries AVX-512 instructions.
+
+    These archives are linked into the app every user runs. One EVEX instruction
+    reachable from model load is a hard crash (0xC000001D) on every CPU without
+    AVX-512 — which is most CPUs. The grep is crude, but it is exactly the defect
+    that shipped in v0.3.0, so it earns its place as a release gate.
+    """
+    if platform.machine().lower() not in ("x86_64", "amd64"):
+        return
+    objdump = shutil.which("objdump")
+    if objdump is None:
+        print("  warning: objdump not found — skipping the AVX-512 scan")
+        return
+    for name in lib_names():
+        if name == "libvulkan-1-delay.a":
+            continue
+        lib, _ = find_lib(build_dir, name)
+        # Stream: objdump on a full archive is hundreds of MB of text, and the
+        # first hit already fails the build.
+        proc = subprocess.Popen(
+            [objdump, "-d", str(lib)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            errors="replace",
+        )
+        try:
+            for line in proc.stdout:
+                if "zmm" in line:
+                    raise SystemExit(
+                        f"{lib.name}: AVX-512 instruction found — refusing to package libs that "
+                        f"crash on non-AVX512 CPUs. First hit: {line.strip()}"
+                    )
+        finally:
+            proc.stdout.close()
+            proc.wait()
+    print("  AVX-512 scan: clean")
 
 
 def lib_names() -> list[str]:
@@ -177,6 +259,7 @@ def main():
     clone(commit, src_dir)
     build(src_dir, build_dir)
     build_vulkan_delay_lib(build_dir)
+    verify_no_avx512(build_dir)
     package(build_dir, src_dir, archive)
 
     if args.upload:
