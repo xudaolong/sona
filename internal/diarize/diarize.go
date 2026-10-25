@@ -6,6 +6,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
+	"github.com/thewh1teagle/sona/internal/executil"
 )
 
 // Segment represents a speaker segment from diarization.
@@ -62,6 +64,7 @@ func Diarize(modelPath, audioPath string) ([]Segment, error) {
 	}
 
 	cmd := exec.Command(binPath, modelPath, audioPath)
+	executil.HideWindow(cmd)
 	cmd.Stderr = os.Stderr
 
 	out, err := cmd.Output()

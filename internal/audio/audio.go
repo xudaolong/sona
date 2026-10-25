@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/thewh1teagle/sona/internal/executil"
 	"github.com/thewh1teagle/sona/internal/wav"
 )
 
@@ -76,6 +77,7 @@ func ConvertToNativeWav(inputPath, outputPath string, enhanceAudio bool) error {
 	)
 
 	cmd := exec.Command(ffmpegPath, args...)
+	executil.HideWindow(cmd)
 	var stderrBuf bytes.Buffer
 	if verbose {
 		cmd.Stderr = io.MultiWriter(os.Stderr, &stderrBuf)
