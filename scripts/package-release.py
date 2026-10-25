@@ -12,36 +12,71 @@ import io
 import shutil
 import tarfile
 import tempfile
+import time
 import zipfile
 from pathlib import Path
 
 import httpx
 
 
+# 每个目标按顺序尝试：gyan.dev / osxexperts 会偶发 5xx（2026-10-25 的 v0.3.2
+# Windows 打包就因 503 整条发布失败），BtbN 的 latest 标签是固定资产名的 GitHub
+# 兜底。压缩包内部目录结构不同，但取的都是 basename=ffmpeg(.exe) 的文件。
 FFMPEG_URLS = {
-    ("darwin", "amd64"): "https://www.osxexperts.net/ffmpeg80intel.zip",
-    ("darwin", "arm64"): "https://www.osxexperts.net/ffmpeg80arm.zip",
-    ("windows", "amd64"): "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+    ("darwin", "amd64"): ["https://www.osxexperts.net/ffmpeg80intel.zip"],
+    ("darwin", "arm64"): ["https://www.osxexperts.net/ffmpeg80arm.zip"],
+    ("windows", "amd64"): [
+        "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+        "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip",
+    ],
 }
 
-
-def download_bytes(url: str) -> bytes:
-    print(f"downloading {url}")
-    resp = httpx.get(url, follow_redirects=True, timeout=180)
-    resp.raise_for_status()
-    return resp.content
+DOWNLOAD_ATTEMPTS = 5
 
 
-def resolve_ffmpeg_url(goos: str, goarch: str) -> str:
+def download_bytes(url: str, attempts: int = DOWNLOAD_ATTEMPTS) -> bytes:
+    last: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        print(f"downloading {url} (attempt {attempt}/{attempts})")
+        try:
+            resp = httpx.get(
+                url, follow_redirects=True, timeout=httpx.Timeout(180.0, connect=30.0)
+            )
+            resp.raise_for_status()
+            return resp.content
+        except (httpx.HTTPError, httpx.StreamError) as exc:
+            last = exc
+            if attempt == attempts:
+                break
+            delay = min(2**attempt, 30)
+            print(f"  failed: {exc!r}; retrying in {delay}s")
+            time.sleep(delay)
+    raise RuntimeError(f"download failed after {attempts} attempts: {url}") from last
+
+
+def resolve_ffmpeg_urls(goos: str, goarch: str) -> list[str]:
     key = (goos, goarch)
     if key not in FFMPEG_URLS:
         raise KeyError(f"unsupported target for ffmpeg URL: {goos}/{goarch}")
     return FFMPEG_URLS[key]
 
 
+def fetch_ffmpeg_zip(goos: str, goarch: str) -> bytes:
+    errors: list[str] = []
+    for url in resolve_ffmpeg_urls(goos, goarch):
+        try:
+            data = download_bytes(url)
+        except RuntimeError as exc:
+            errors.append(str(exc))
+            continue
+        if zipfile.is_zipfile(io.BytesIO(data)):
+            return data
+        errors.append(f"{url}: response is not a zip archive ({len(data)} bytes)")
+    raise RuntimeError("all ffmpeg mirrors failed:\n  " + "\n  ".join(errors))
+
+
 def copy_ffmpeg(stage_dir: Path, goos: str, goarch: str):
-    url = resolve_ffmpeg_url(goos, goarch)
-    data = download_bytes(url)
+    data = fetch_ffmpeg_zip(goos, goarch)
     ffmpeg_name = "ffmpeg.exe" if goos == "windows" else "ffmpeg"
     ffmpeg_path = stage_dir / ffmpeg_name
 
