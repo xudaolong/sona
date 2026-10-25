@@ -2,6 +2,15 @@ name: Build whisper.cpp libs
 
 on:
   workflow_dispatch:
+  # Rebuild automatically when the recipe or the pinned whisper.cpp commit
+  # changes. Both determine what ends up inside libggml-*, and a manual step
+  # here is how the v0.3.0 release shipped libs built with -march=native.
+  push:
+    branches: [main]
+    paths:
+      - scripts/build-libs.py
+      - .whisper.cpp-commit
+      - .github/workflows/build-libs.yml
 
 permissions:
   contents: write
